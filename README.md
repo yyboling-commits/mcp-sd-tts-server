@@ -171,3 +171,9 @@ mcp-sd-tts-server/
 - `pyyaml` — YAML 配置解析
 
 ---
+
+---
+
+## License
+
+MIT

@@ -1,4 +1,4 @@
-﻿"""SD WebUI API client - no private info, all configurable via config.yaml"""
+﻿"""SD WebUI API wrapper"""
 
 import requests
 import base64

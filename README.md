@@ -1,131 +1,176 @@
 ﻿# SD + TTS MCP Server
 
-A Model Context Protocol (MCP) server that exposes **Stable Diffusion** (txt2img) and **GPT-SoVITS** (TTS) as MCP tools — making them accessible from any MCP-compatible client (Codex, Claude Desktop, etc.).
+A Model Context Protocol (MCP) server exposing **Stable Diffusion** (txt2img) and **GPT-SoVITS** (TTS) as standard MCP tools, for use with any MCP-compatible client (Codex, Claude Desktop, etc.).
 
-## Features
+---
 
-### Tools
-
-| Tool | Description |
-|------|-------------|
-| `txt2img` | Generate images from text prompts via SD WebUI API |
-| `tts` | Synthesize speech from text via GPT-SoVITS API |
-| `sd_health` | Check if SD WebUI is running |
-| `tts_health` | Check if TTS server is running |
-| `list_sd_models` | List available SD checkpoint models |
-
-### Transport
-
-- **stdio** (default) — for MCP client integration (Codex, Claude Desktop)
-- **sse** — HTTP server mode (useful for remote access)
-
-## Prerequisites
-
-- Python 3.11+
-- [Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) running with `--api` flag
-- [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) TTS server running
-
-## Installation
+## Quick Start
 
 ```bash
-# Clone the repo
-git clone https://github.com/YOUR_USERNAME/mcp-sd-tts-server.git
+# 1. Install
+git clone https://github.com/yyboling-commits/mcp-sd-tts-server.git
 cd mcp-sd-tts-server
+pip install mcp requests pyyaml
 
-# Install dependencies
-pip install -e .
+# 2. Configure
+cp config.example.yaml config.yaml
+# Edit config.yaml with your service URLs
+
+# 3. Run
+python src/server.py
 ```
+
+---
 
 ## Configuration
 
-Copy the example config and fill in your local service URLs:
-
-```bash
-cp config.example.yaml config.yaml
-```
-
-Edit `config.yaml`:
+Copy `config.example.yaml` to `config.yaml` and edit:
 
 ```yaml
 sd:
-  url: "http://127.0.0.1:7860"    # Your SD WebUI URL
-  default_model: "your_model"      # Optional default model
+  url: "http://127.0.0.1:7860"    # SD WebUI 地址
+  default_model: ""                # 默认模型名（可选）
 
 tts:
-  url: "http://127.0.0.1:9880"    # Your GPT-SoVITS URL
-  default_voice: "your_voice"      # Optional default voice
+  url: "http://127.0.0.1:9880"    # GPT-SoVITS 地址
+  default_voice: ""                # 默认音色（可选）
+
+server:
+  name: "sd-tts-mcp"
+  transport: "stdio"               # stdio | sse
 ```
 
-## Usage
+### 前置条件
 
-### stdio mode (for Codex / Claude Desktop)
+- **Stable Diffusion WebUI** 需启动并开启 `--api` 参数
+- **GPT-SoVITS TTS** 需启动 API 服务（默认端口 9880）
+
+---
+
+## Transport 模式
+
+### stdio 模式（默认，推荐）
 
 ```bash
 python src/server.py
 ```
 
-### SSE mode (HTTP)
+标准输入输出模式，适用于 MCP 客户端直接启动子进程调用。
+
+### SSE 模式（HTTP）
 
 ```bash
 python src/server.py --transport sse
 ```
 
-### Register with Codex
+HTTP 服务模式，监听 `0.0.0.0:8000`。SSE 端点 `/sse`，消息端点 `/messages`。
 
-In your Codex config, register the server:
+---
+
+## 注册到客户端
+
+### Codex / Claude Desktop
+
+在 MCP 配置中添加：
 
 ```json
 {
   "mcpServers": {
     "sd-tts": {
       "command": "python",
-      "args": ["path/to/src/server.py"],
+      "args": ["路径/src/server.py"],
       "env": {}
     }
   }
 }
 ```
 
-## API Reference
+### 其他 MCP 客户端
 
-### txt2img
+任意支持 stdio transport 的 MCP 客户端均可使用，配置方式同上。
 
-```json
-{
-  "prompt": "your positive prompt",
-  "negative_prompt": "negative prompt (optional)",
-  "width": 896,
-  "height": 1344,
-  "steps": 20,
-  "cfg_scale": 5.0,
-  "sampler_name": "Euler",
-  "seed": -1,
-  "model_name": "optional model override"
-}
-```
+---
 
-### tts
+## 可用工具
 
-```json
-{
-  "text": "text to speak",
-  "speed": 0.85,
-  "temperature": 1.0
-}
-```
+### txt2img — 文生图
 
-## Project Structure
+调用 SD WebUI API 生成图片。
+
+参数：
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `prompt` | string | - | **必填**。正向提示词 |
+| `negative_prompt` | string | "" | 反向提示词 |
+| `width` | int | 896 | 图片宽度 |
+| `height` | int | 1344 | 图片高度 |
+| `steps` | int | 20 | 采样步数 |
+| `cfg_scale` | float | 5.0 | CFG 引导尺度 |
+| `sampler_name` | string | "Euler" | 采样器 |
+| `seed` | int | -1 | 随机种子（-1=随机） |
+| `model_name` | string | "" | 模型名（留空用默认） |
+
+返回：PNG 图片 + 种子信息 JSON。
+
+### tts — 文本转语音
+
+调用 GPT-SoVITS API 生成语音。
+
+参数：
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `text` | string | - | **必填**。要合成的文本 |
+| `speed` | float | 0.85 | 语速 |
+| `temperature` | float | 1.0 | 生成温度 |
+
+返回：WAV 音频。
+
+### sd_health — SD 健康检查
+
+检查 SD WebUI 是否正常运行。无参数。
+
+返回：`{"ok": true/false}`
+
+### tts_health — TTS 健康检查
+
+检查 TTS 服务是否正常运行。无参数。
+
+返回：`{"ok": true/false}`
+
+### list_sd_models — 列出可用模型
+
+查询 SD WebUI 中加载的所有 checkpoint 模型。无参数。
+
+返回：`{"models": ["model1", "model2", ...]}`
+
+---
+
+## 项目结构
 
 ```
 mcp-sd-tts-server/
 ├── src/
-│   ├── server.py        # MCP server entry point
-│   ├── sd_client.py     # SD WebUI API wrapper
-│   └── tts_client.py    # GPT-SoVITS API wrapper
-├── config.example.yaml  # Sample configuration
-├── pyproject.toml       # Python project metadata
+│   ├── server.py        # MCP 服务入口
+│   ├── sd_client.py     # SD WebUI API 封装
+│   └── tts_client.py    # GPT-SoVITS API 封装
+├── config.example.yaml  # 配置示例
+├── pyproject.toml       # 项目元数据
+├── README.md
 └── .gitignore
 ```
+
+---
+
+## 依赖
+
+- Python >= 3.11
+- `mcp` — Model Context Protocol SDK
+- `requests` — HTTP 客户端
+- `pyyaml` — YAML 配置解析
+
+---
 
 ## License
 

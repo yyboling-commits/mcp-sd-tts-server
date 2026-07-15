@@ -1,0 +1,14 @@
+﻿# SD WebUI + TTS MCP Server - Sample Configuration
+# Copy this file as config.yaml and fill in your local paths
+
+sd:
+  url: "http://127.0.0.1:7860"
+  default_model: "your_model_name_here"
+
+tts:
+  url: "http://127.0.0.1:9880" 
+  default_voice: "your_voice_name_here"
+
+server:
+  name: "sd-tts-mcp"
+  transport: "stdio"

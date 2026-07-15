@@ -7,7 +7,6 @@ name = "mcp-sd-tts-server"
 version = "0.1.0"
 description = "MCP Server for Stable Diffusion (txt2img) and TTS (GPT-SoVITS)"
 readme = "README.md"
-license = {text = "MIT"}
 requires-python = ">=3.11"
 dependencies = [
     "mcp>=1.0.0",
